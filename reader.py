@@ -12,7 +12,7 @@ writer = csv.writer(final)
 header = next(reader, None)
 writer.writerow(('FID', 'Join_Count', 'TARGET_FID','Fatalities','PedFatalit','BikeFatali','MVOFatalit','YR','NODEID','Lon', 'Lat','STREET1','STREET2','InBikeZone'))
 
-bike_priority_districts = gpd.read_file('data/bike_priority_districts.json')
+bike_priority_districts = gpd.read_file('data/initiatives/bike_priority_districts.json')
 bpd_geo = bike_priority_districts['geometry'] #geoseries of
 
 for row in reader:
