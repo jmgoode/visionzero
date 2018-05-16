@@ -1,6 +1,5 @@
 import csv, shapely, sys, os
 import geopandas as gpd
-#import matplotlib.pyplot as plt
 
 #read in input CSV file
 # infile = open('data/clean/fatality_yearly_clean.csv')
