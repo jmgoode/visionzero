@@ -9,7 +9,7 @@ reader = csv.reader(infile, delimiter=',')
 outfile = open(sys.argv[3],'w')
 writer = csv.writer(outfile)
 
-#read in data (using file path as sys.argv[1])
+#read in data (using file path as sys.argv[2])
 try:
     input_file = gpd.read_file(sys.argv[2])
 except:
