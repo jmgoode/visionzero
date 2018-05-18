@@ -18,13 +18,13 @@ except:
 
 #add a column
 header = next(reader, None) #read in header row
-column_name = sys.argv[4] #extract desired column name specificed in command line sys.argv[2]
-
-if column_name in header: #if the column name already exists
-    pass
-else:
-    header.append(column_name) #add column label
-    writer.writerow(header)
+column_name = sys.argv[2].split('/')[-1].split('.')[0] #extract desired column name specificed in command line sys.argv[2]
+print(column_name)
+# if column_name in header: #if the column name already exists
+#     pass
+# else:
+header.append(column_name) #add column label
+writer.writerow(header)
     #writer.writerow(('FID', 'Join_Count', 'TARGET_FID','Fatalities','PedFatalit','BikeFatali','MVOFatalit','YR','NODEID','Lon', 'Lat','STREET1','STREET2','InBikeZone'))
 
 #make row dictionary (e.g. header_dict['BikeZone'] == 3)
@@ -61,13 +61,23 @@ def check_point_in_polygon(row, point, zones):
 
 def check_point_in_linestring(row,point,lines):
     point_list = []
-    for line in lines:
+    for key,shape in lines.iteritems():
         #if line.contains(point):
-        if line.distance(point) < 1e-8:
-            point_list.append(point)
-            break
-        else:
-            pass
+        type = shape.geom_type
+        if type == 'LineString':
+            if shape.distance(point) < 1e-8:
+                point_list.append(point)
+                break
+            else:
+                pass
+        elif type == 'MultiLineString':
+            line_list = list(shape.geoms)
+            for line in line_list:
+                if line.distance(point) < 1e-8:
+                    point_list.append(point)
+                    break
+                else:
+                    pass
 
     if len(point_list) > 0:
         row.append(1)
@@ -105,7 +115,7 @@ if object_type == 'Polygon':
         point = extract_point(row) #creates shapely Point object
         check_point_in_polygon(row, point, zones) #checks to see if point in polygon and writes 1 to column if True, 0 if false
 
-elif object_type == 'LineString':
+elif object_type == 'LineString' or 'MultiLineString':
     lines = input_file.geometry
 
     for row in reader:

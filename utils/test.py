@@ -1,7 +1,34 @@
 import csv, shapely, sys, os
 import geopandas as gpd
 from pathlib import Path
-#import matplotlib.pyplot as plt
+
+#read in input CSV file
+# infile = open('data/clean/fatality_yearly_clean.csv')
+infile = open(sys.argv[1])
+reader = csv.reader(infile, delimiter=',')
+
+outfile = open(sys.argv[3],'w')
+writer = csv.writer(outfile)
+
+#read in data (using file path as sys.argv[2])
+try:
+    input_file = gpd.read_file(sys.argv[2])
+except:
+    print('Input file not found, please try again')
+    sys.exit()
+
+#add a column
+header = next(reader, None) #read in header row
+column_name = sys.argv[2].split('/')[-1].split('.')[0] #extract desired column name specificed in command line sys.argv[2]
+
+header.append(column_name) #add column label
+writer.writerow(header)
+
+#make row dictionary (e.g. header_dict['BikeZone'] == 3)
+enum_header = enumerate(header)
+header_dict = {}
+for num,index in enum_header:
+    header_dict[index] = num
 
 #make a point from CSV
 def extract_point(row):
@@ -44,7 +71,7 @@ def attribute_check(row, point, geo):
             else:
                 print(row)
         except: #its a multishape and we must iterate
-            print(row)
+            print(type, row)
 
     if len(point_list) > 0:
         row.append(1)
@@ -52,37 +79,3 @@ def attribute_check(row, point, geo):
     else:
         row.append(0)
         writer.writerow(row)
-
-for file in os.listdir('../initiatives'):
-    if not file.startswith('.'):
-        infile = open('in.csv')
-        reader = csv.reader(infile, delimiter=',')
-        path = '../initiatives/' + file
-        input_file = gpd.read_file(path)
-        outfile = open('out.csv','w')
-        writer = csv.writer(outfile)
-
-        #add a column
-        header = next(reader, None) #read in header row
-        column_name = file.split('.')[0] #extract desired column name specificed in command line sys.argv[2]
-
-        header.append(column_name) #add column label
-        writer.writerow(header)
-
-        #make row dictionary (e.g. header_dict['BikeZone'] == 3)
-        enum_header = enumerate(header)
-        header_dict = {}
-        for num,index in enum_header:
-            header_dict[index] = num
-
-        for row in reader:
-            point = extract_point(row) #creates shapely Point object
-            geo = input_file['geometry']
-            attribute_check(row,point,geo)
-
-    infile.close()
-    outfile.close()
-
-    os.remove('in.csv')
-    os.rename('out.csv','in.csv')
-    Path('out.csv').touch()
