@@ -13,6 +13,8 @@ writer = csv.writer(outfile)
 #read in data (using file path as sys.argv[2])
 try:
     input_file = gpd.read_file(sys.argv[2])
+    geo = input_file.geometry
+
 except:
     print('Input file not found, please try again')
     sys.exit()
@@ -55,7 +57,7 @@ def attribute_check(row, point, geo):
                 else:
                     pass
             elif type == 'Point':
-                if shape.almost_equals(point,decimal=2):
+                if shape.almost_equals(point,decimal=4):
                     point_list.append(point)
                     break
                 else:
@@ -79,3 +81,10 @@ def attribute_check(row, point, geo):
     else:
         row.append(0)
         writer.writerow(row)
+
+for row in reader:
+    point = extract_point(row) #creates shapely Point object
+    attribute_check(row, point, geo) #checks to see if point in polygon and writes 1 to column if True, 0 if false
+
+infile.close()
+outfile.close()
