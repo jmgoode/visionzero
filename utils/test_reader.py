@@ -42,9 +42,9 @@ def attribute_check(row, point, geo):
                     else:
                         pass
             else:
-                print(row)
+                pass
         except: #its a multishape and we must iterate
-            print(row)
+            pass
 
     if len(point_list) > 0:
         row.append(1)
