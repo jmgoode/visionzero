@@ -1,0 +1,89 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+rm(list=ls())
+library(plyr)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(ROCR)
+```
+
+
+```{r}
+d.injury.yearly <- read.csv('~/Desktop/injury_yearly_in.csv', header = TRUE)
+
+d.injury.yearly <- d.injury.yearly %>%
+  mutate(Injuries = as.factor(Injuries),
+         PedInjurie = as.factor(PedInjurie),
+         BikeInjuri = as.factor(BikeInjuri),
+         MVOInjurie = as.factor(MVOInjurie),
+         bike_priority_districts = as.factor(bike_priority_districts),
+         enhanced_crossings = as.factor(enhanced_crossings),
+         left_turn_traffic_calming = as.factor(left_turn_traffic_calming),
+         neighborhood_slow_zones = as.factor(neighborhood_slow_zones), 
+         leading_pedestrian_interval_signals = as.factor(leading_pedestrian_interval_signals), 
+         signal_timing = as.factor(signal_timing), 
+         speed_humps = as.factor(speed_humps), 
+         safe_streets_for_seniors = as.factor(safe_streets_for_seniors),
+         street_improvement_projects_corridors = as.factor(street_improvement_projects_corridors),
+         vz_priority_corridors = as.factor(vz_priority_corridors),
+         vz_priority_intersections = as.factor(vz_priority_intersections),
+         arterial_slow_zones = as.factor(arterial_slow_zones), 
+         street_improvement_projects_corridors = as.factor(street_improvement_projects_corridors),
+         vz_priority_zones = as.factor(vz_priority_zones))
+
+  
+  
+```
+
+
+```{r}
+logistic.injuryyearly.injury <- glm(Injuries ~ bike_priority_districts + enhanced_crossings + speed_humps + left_turn_traffic_calming + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors + vz_priority_corridors + vz_priority_intersections + vz_priority_zones, family = "binomial", data = d.injury.yearly)
+
+summary(logistic.injuryyearly.injury)
+
+logistic.injuryyearly.pedinjury <- glm(PedInjurie ~ bike_priority_districts + enhanced_crossings + speed_humps + left_turn_traffic_calming + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors + vz_priority_corridors + vz_priority_intersections + vz_priority_zones, family = "binomial", data = d.injury.yearly)
+
+summary(logistic.injuryyearly.pedinjury)
+
+logistic.injuryyearly.bikeinjury <- glm(BikeInjuri ~ bike_priority_districts + enhanced_crossings + speed_humps + left_turn_traffic_calming + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors + vz_priority_corridors + vz_priority_intersections + vz_priority_zones, family = "binomial", data = d.injury.yearly)
+
+summary(logistic.injuryyearly.bikeinjury) 
+```
+
+```{r}
+
+
+set.seed(123)  
+t_index <- sample(seq_len(nrow(d.injury.yearly)), size = floor(.70*nrow(d.injury.yearly)), replace = F)
+
+d.train <- d.injury.yearly[t_index, ]
+d.test <- d.injury.yearly[-t_index, ] 
+
+m.log <- glm(Injuries ~ bike_priority_districts + enhanced_crossings + 
+    speed_humps + left_turn_traffic_calming + leading_pedestrian_interval_signals + 
+    signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors + 
+    vz_priority_corridors + vz_priority_intersections + vz_priority_zones, data = d.train, family = "binomial")
+
+d.test$Predicted_Injury <- predict(m.log, newdata = d.test, type = "response")
+
+d.test$Predicted_Injury <- ifelse(d.test$Predicted_Injury >= 0.5,
+                                   1,
+                                   0) 
+x <- d.test %>% filter(Predicted_Injury == 1) %>% nrow()
+
+d.test 
+
+pred <- prediction(predictions = d.test$Predicted_Injury, labels = d.test$Injuries)
+roc.perf <- performance(pred, measure = "tpr", x.measure = "fpr")
+
+plot(roc.perf)
+
+```
+
