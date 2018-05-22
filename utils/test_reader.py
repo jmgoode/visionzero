@@ -63,11 +63,16 @@ for file in os.listdir('../initiatives'):
         writer = csv.writer(outfile)
 
         #add a column
-        header = next(reader, None) #read in header row
+        header = next(reader) #read in header row
         column_name = file.split('.')[0] #extract desired column name specificed in command line sys.argv[2]
 
-        header.append(column_name) #add column label
-        writer.writerow(header)
+        try:
+            header.append(column_name) #add column label
+            writer.writerow(header)
+
+        except:
+            header.append(file) #add column label
+            writer.writerow(header)
 
         #make row dictionary (e.g. header_dict['BikeZone'] == 3)
         enum_header = enumerate(header)
