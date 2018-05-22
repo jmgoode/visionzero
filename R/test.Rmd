@@ -1,0 +1,54 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+rm(list=ls())
+library(plyr)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+```
+
+
+```{r}
+d.injury.yearly <- read.csv('~/Desktop/data_analysis/project/visionzero/data/final/injury_yearly_final.csv', header = TRUE)
+
+d.injury.yearly <- d.injury.yearly %>%
+  mutate(Injuries = as.factor(Injuries),
+         PedInjurie = as.factor(PedInjurie),
+         BikeInjuri = as.factor(BikeInjuri),
+         MVOInjurie = as.factor(MVOInjurie),
+         bike_priority_districts = as.factor(bike_priority_districts),
+         enhanced_crossings = as.factor(enhanced_crossings),
+         left_turn_traffic_calming = as.factor(left_turn_traffic_calming),
+         neighborhood_slow_zones = as.factor(neighborhood_slow_zones), 
+         leading_pedestrian_interval_signals = as.factor(leading_pedestrian_interval_signals), 
+         signal_timing = as.factor(signal_timing), 
+         speed_humps = as.factor(speed_humps), 
+         safe_streets_for_seniors = as.factor(safe_streets_for_seniors),
+         street_improvement_projects_corridors = as.factor(street_improvement_projects_corridors),
+         vz_priority_corridors = as.factor(vz_priority_corridors),
+         vz_priority_intersections = as.factor(vz_priority_intersections),
+         arterial_slow_zones = as.factor(arterial_slow_zones), 
+         street_improvement_projects_corridors = as.factor(street_improvement_projects_corridors),
+         vz_priority_zones = as.factor(vz_priority_zones))
+
+  
+  
+```
+
+
+```{r}
+
+#d.in = d.injury.yearly %>% filter(bike_priority_districts == 1)
+bike_lr <- glm(Injuries ~ bike_priority_districts, family="binomial", d.injury.yearly)
+summary(bike_lr)
+
+exp(coef(bike_lr))
+exp(confint(bike_lr))
+```
+
