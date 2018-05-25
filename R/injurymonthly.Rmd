@@ -85,7 +85,7 @@ logistic.injurymonthly.bikeinjury <- glm(BikeInjuri ~ MN + bike_priority_distric
 
 #summary(logistic.injuryyearly.bikeinjury) 
 
-logistic.injurymonthly.MVOinjurie <- glm(MVOInjurie ~ arterial_slow_zones + enhanced_crossings + speed_humps + left_turn_traffic_calming + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial,", data = d.in)
+logistic.injurymonthly.MVOinjurie <- glm(MVOInjurie ~ arterial_slow_zones + enhanced_crossings + speed_humps + left_turn_traffic_calming + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.in)
 ```
 
 ```{r}
@@ -105,6 +105,228 @@ m.log <- glm(Injuries ~ bike_priority_districts + enhanced_crossings + speed_hum
 
 #train logistic regression take 3 (only problem zones)
 #m.log <- glm(Injuries ~ bike_priority_districts + vz_priority_corridors + vz_priority_intersections + vz_priority_zones, data = d.train, family = "binomial")
+
+#predict injury
+d.test$Predicted_Injury <- predict(m.log, newdata = d.test, type = "response")
+
+#optimal cutoff seems to be 0.1
+d.test$Predicted_Injury <- ifelse(d.test$Predicted_Injury >= 0.2,
+                                   1,
+                                   0) 
+
+# TP
+tp <- d.test %>%
+  filter(Injuries == 1 & Predicted_Injury == 1) %>% nrow()
+# TN
+tn <- d.test %>%
+  filter(Injuries == 0 & Predicted_Injury == 0) %>% nrow()
+# FP
+fp <- d.test %>%
+  filter(Injuries == 0 & Predicted_Injury == 1) %>% nrow()
+# FN
+fn <- d.test %>%
+  filter(Injuries == 1 & Predicted_Injury == 0) %>% nrow()
+
+# Sensitivity (or TPR)
+sens <- tp/(tp+fn)
+
+# Specificity ( 1 - FPR)
+spec <- tn/(tn+fp)
+
+# Accuracy
+acc <- (fp+tp)/(tp+tn+fp+fn)
+
+# FPR (1- Specificity)
+1 - (tn/(tn+fp))
+
+# FNR
+fn/(fn+tp)
+
+#find AUC
+pred <- prediction(predictions = d.test$Predicted_Injury, labels = d.test$Injuries)
+roc.perf <- performance(pred, measure = "tpr", x.measure = "fpr")
+
+plot(roc.perf)
+
+auc.perf <- performance(pred, measure = "auc")
+auc.perf@y.values
+
+#Decision Tree
+mtree.1 <- rpart(Injuries ~ bike_priority_districts + enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors + vz_priority_corridors + vz_priority_intersections + vz_priority_zones, data=d.train, method="class")
+plot(mtree.1)
+text(mtree.1, pretty = 1)
+
+d.var_imp <-data.frame(mtree.1$variable.importance)
+names(d.var_imp) <- "importance"
+d.var_imp$variable <-as.factor(rownames(d.var_imp))
+d.var_imp <-transform(d.var_imp, variable=reorder(variable, -importance) )
+
+filt5 <- d.var_imp %>% top_n(-5)
+
+g <-ggplot(filt5,aes(x=variable, y=importance)) + 
+  geom_bar(stat="identity")
+plot(g)
+
+```
+```{r}
+#PEDESTRIAN INJURY 
+set.seed(123)  
+t_index <- sample(seq_len(nrow(d.in)), size = floor(.70*nrow(d.in)), replace = F)
+
+d.train <- d.in[t_index, ]
+d.test <- d.in[-t_index, ] 
+
+#train logistic regression 
+m.log <- glm(PedInjurie ~ arterial_slow_zones + enhanced_crossings + speed_humps + left_turn_traffic_calming + leading_pedestrian_interval_signals + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.test)
+
+
+#predict injury
+d.test$Predicted_Injury <- predict(m.log, newdata = d.test, type = "response")
+
+#optimal cutoff seems to be 0.1
+d.test$Predicted_Injury <- ifelse(d.test$Predicted_Injury >= 0.05,
+                                   1,
+                                   0) 
+
+# TP
+tp <- d.test %>%
+  filter(Injuries == 1 & Predicted_Injury == 1) %>% nrow()
+# TN
+tn <- d.test %>%
+  filter(Injuries == 0 & Predicted_Injury == 0) %>% nrow()
+# FP
+fp <- d.test %>%
+  filter(Injuries == 0 & Predicted_Injury == 1) %>% nrow()
+# FN
+fn <- d.test %>%
+  filter(Injuries == 1 & Predicted_Injury == 0) %>% nrow()
+
+# Sensitivity (or TPR)
+sens <- tp/(tp+fn)
+
+# Specificity ( 1 - FPR)
+spec <- tn/(tn+fp)
+
+# Accuracy
+acc <- (fp+tp)/(tp+tn+fp+fn)
+
+# FPR (1- Specificity)
+1 - (tn/(tn+fp))
+
+# FNR
+fn/(fn+tp)
+
+#find AUC
+pred <- prediction(predictions = d.test$Predicted_Injury, labels = d.test$Injuries)
+roc.perf <- performance(pred, measure = "tpr", x.measure = "fpr")
+
+plot(roc.perf)
+
+auc.perf <- performance(pred, measure = "auc")
+auc.perf@y.values
+
+#Decision Tree
+mtree.1 <- rpart(PedInjurie ~ arterial_slow_zones + enhanced_crossings + speed_humps + left_turn_traffic_calming + leading_pedestrian_interval_signals + street_improvement_projects_corridors + neighborhood_slow_zones, data=d.train, method="class")
+plot(mtree.1)
+text(mtree.1, pretty = 1)
+
+d.var_imp <-data.frame(mtree.1$variable.importance)
+names(d.var_imp) <- "importance"
+d.var_imp$variable <-as.factor(rownames(d.var_imp))
+d.var_imp <-transform(d.var_imp, variable=reorder(variable, -importance) )
+
+filt5 <- d.var_imp %>% top_n(-5)
+
+g <-ggplot(filt5,aes(x=variable, y=importance)) + 
+  geom_bar(stat="identity")
+plot(g)
+
+```
+
+```{r}
+#BIKE INJURY 
+set.seed(123)  
+t_index <- sample(seq_len(nrow(d.in)), size = floor(.70*nrow(d.in)), replace = F)
+
+d.train <- d.in[t_index, ]
+d.test <- d.in[-t_index, ] 
+
+#train logistic regression 
+m.log <- glm(BikeInjuri ~ enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + signal_timing + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.test)
+
+
+#predict injury
+d.test$Predicted_Injury <- predict(m.log, newdata = d.test, type = "response")
+
+#optimal cutoff seems to be 0.1
+d.test$Predicted_Injury <- ifelse(d.test$Predicted_Injury >= 0.03,
+                                   1,
+                                   0) 
+
+# TP
+tp <- d.test %>%
+  filter(Injuries == 1 & Predicted_Injury == 1) %>% nrow()
+# TN
+tn <- d.test %>%
+  filter(Injuries == 0 & Predicted_Injury == 0) %>% nrow()
+# FP
+fp <- d.test %>%
+  filter(Injuries == 0 & Predicted_Injury == 1) %>% nrow()
+# FN
+fn <- d.test %>%
+  filter(Injuries == 1 & Predicted_Injury == 0) %>% nrow()
+
+# Sensitivity (or TPR)
+sens <- tp/(tp+fn)
+
+# Specificity ( 1 - FPR)
+spec <- tn/(tn+fp)
+
+# Accuracy
+acc <- (fp+tp)/(tp+tn+fp+fn)
+
+# FPR (1- Specificity)
+1 - (tn/(tn+fp))
+
+# FNR
+fn/(fn+tp)
+
+#find AUC
+pred <- prediction(predictions = d.test$Predicted_Injury, labels = d.test$Injuries)
+roc.perf <- performance(pred, measure = "tpr", x.measure = "fpr")
+
+plot(roc.perf)
+
+auc.perf <- performance(pred, measure = "auc")
+auc.perf@y.values
+
+mtree.1 <- rpart(BikeInjuri ~ enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + signal_timing + street_improvement_projects_corridors + neighborhood_slow_zones, data=d.train, method="class")
+plot(mtree.1)
+text(mtree.1, pretty = 1)
+
+d.var_imp <-data.frame(mtree.1$variable.importance)
+names(d.var_imp) <- "importance"
+d.var_imp$variable <-as.factor(rownames(d.var_imp))
+d.var_imp <-transform(d.var_imp, variable=reorder(variable, -importance) )
+
+filt5 <- d.var_imp %>% top_n(-5)
+
+g <-ggplot(filt5,aes(x=variable, y=importance)) + 
+  geom_bar(stat="identity")
+plot(g)
+```
+
+```{r}
+#MVO INJURY 
+set.seed(123)  
+t_index <- sample(seq_len(nrow(d.in)), size = floor(.70*nrow(d.in)), replace = F)
+
+d.train <- d.in[t_index, ]
+d.test <- d.in[-t_index, ] 
+
+#train logistic regression 
+m.log <- glm(MVOInjurie ~ arterial_slow_zones + enhanced_crossings + speed_humps + left_turn_traffic_calming + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.test)
+
 
 #predict injury
 d.test$Predicted_Injury <- predict(m.log, newdata = d.test, type = "response")
@@ -150,17 +372,5 @@ plot(roc.perf)
 
 auc.perf <- performance(pred, measure = "auc")
 auc.perf@y.values
-
-```
-```{r}
-#PEDESTRIAN INJURY 
-```
-
-```{r}
-#BIKE INJURY 
-```
-
-```{r}
-#MVO INJURY 
 ```
 
