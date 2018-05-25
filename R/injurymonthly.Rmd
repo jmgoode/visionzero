@@ -89,6 +89,7 @@ logistic.injurymonthly.MVOinjurie <- glm(MVOInjurie ~ arterial_slow_zones + enha
 ```
 
 ```{r}
+#GENERAL INJURY 
 #split data 70-30
 set.seed(123)  
 t_index <- sample(seq_len(nrow(d.in)), size = floor(.70*nrow(d.in)), replace = F)
@@ -150,5 +151,16 @@ plot(roc.perf)
 auc.perf <- performance(pred, measure = "auc")
 auc.perf@y.values
 
+```
+```{r}
+#PEDESTRIAN INJURY 
+```
+
+```{r}
+#BIKE INJURY 
+```
+
+```{r}
+#MVO INJURY 
 ```
 

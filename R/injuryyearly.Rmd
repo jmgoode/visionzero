@@ -71,9 +71,9 @@ d.in <- d.in %>%
 
 injury_yearly.glm <- glm(Injuries ~ enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.in)
 
-#summary(injury_yearly.glm)
-#exp(coef(injury_yearly.glm))
-#exp(confint(injury_yearly.glm))
+summary(injury_yearly.glm)
+exp(coef(injury_yearly.glm))
+exp(confint(injury_yearly.glm))
 
 
 logistic.injuryyearly.pedinjury <- glm(PedInjurie ~ arterial_slow_zones + enhanced_crossings + speed_humps + left_turn_traffic_calming + leading_pedestrian_interval_signals + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.in)
