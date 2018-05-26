@@ -15,8 +15,10 @@ library(dplyr)
 library(ggplot2)
 library(ROCR)
 library(ggmap)
+library(rpart)
 library(curl)
 library(jsonlite)
+library(broom)
 library(rgdal)
 
 ```
@@ -24,8 +26,35 @@ library(rgdal)
 
 Read in data and plot
 ```{r}
+d.in <- read.csv('~/Desktop/visionzero/data/final/injury_monthly_final.csv', header = TRUE)
+
+d.in <- d.in %>%
+  filter(MN != 0)
+
+g <- ggplot(data = d.in, aes(x=MN, y=Injuries_COUNT)) + 
+  geom_bar(stat="identity")
+plot(g)
+
+g <- ggplot(data = d.in, aes(x=MN, y=PedInjurie_COUNT)) + 
+  geom_bar(stat="identity")
+plot(g)
+
+g <- ggplot(data = d.in, aes(x=MN, y=BikeInjuri_COUNT)) + 
+  geom_bar(stat="identity")
+plot(g) 
+
+g <- ggplot(data = d.in, aes(x=MN, y=MVOInjurie_COUNT)) + 
+  geom_bar(stat="identity")
+plot(g)
+
+```
+
+
+```{r}
 #d.in <- read.csv('~/Desktop/data_analysis/project/visionzero/data/final/injury_monthly_final.csv', header = TRUE)
 d.in <- read.csv('~/Desktop/visionzero/data/final/injury_monthly_final.csv', header = TRUE)
+
+
 
 # Get a map
 nyc <- get_map(location = c(lon = -73.935, lat = 40.712), zoom = 10)
@@ -91,6 +120,7 @@ logistic.injurymonthly.MVOinjurie <- glm(MVOInjurie ~ arterial_slow_zones + enha
 ```{r}
 #GENERAL INJURY 
 #split data 70-30
+
 set.seed(123)  
 t_index <- sample(seq_len(nrow(d.in)), size = floor(.70*nrow(d.in)), replace = F)
 
@@ -99,6 +129,11 @@ d.test <- d.in[-t_index, ]
 
 #train logistic regression take 1 (all)
 m.log <- glm(Injuries ~ bike_priority_districts + enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors + vz_priority_corridors + vz_priority_intersections + vz_priority_zones, data = d.train, family = "binomial")
+
+a <- data.frame(exp(confint(m.log)))
+b <- data.frame(exp(coef(m.log)))
+
+
 
 #train logistic regression take 2 (only real safety features)
 #m.log <- glm(Injuries ~ enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors + neighborhood_slow_zones, data = d.train, family = "binomial")
@@ -165,7 +200,7 @@ filt5 <- d.var_imp %>% top_n(-5)
 
 g <-ggplot(filt5,aes(x=variable, y=importance)) + 
   geom_bar(stat="identity")
-plot(g)
+plot(g) 
 
 ```
 ```{r}
@@ -225,21 +260,7 @@ plot(roc.perf)
 auc.perf <- performance(pred, measure = "auc")
 auc.perf@y.values
 
-#Decision Tree
-mtree.1 <- rpart(PedInjurie ~ arterial_slow_zones + enhanced_crossings + speed_humps + left_turn_traffic_calming + leading_pedestrian_interval_signals + street_improvement_projects_corridors + neighborhood_slow_zones, data=d.train, method="class")
-plot(mtree.1)
-text(mtree.1, pretty = 1)
 
-d.var_imp <-data.frame(mtree.1$variable.importance)
-names(d.var_imp) <- "importance"
-d.var_imp$variable <-as.factor(rownames(d.var_imp))
-d.var_imp <-transform(d.var_imp, variable=reorder(variable, -importance) )
-
-filt5 <- d.var_imp %>% top_n(-5)
-
-g <-ggplot(filt5,aes(x=variable, y=importance)) + 
-  geom_bar(stat="identity")
-plot(g)
 
 ```
 
@@ -300,20 +321,7 @@ plot(roc.perf)
 auc.perf <- performance(pred, measure = "auc")
 auc.perf@y.values
 
-mtree.1 <- rpart(BikeInjuri ~ enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + signal_timing + street_improvement_projects_corridors + neighborhood_slow_zones, data=d.train, method="class")
-plot(mtree.1)
-text(mtree.1, pretty = 1)
 
-d.var_imp <-data.frame(mtree.1$variable.importance)
-names(d.var_imp) <- "importance"
-d.var_imp$variable <-as.factor(rownames(d.var_imp))
-d.var_imp <-transform(d.var_imp, variable=reorder(variable, -importance) )
-
-filt5 <- d.var_imp %>% top_n(-5)
-
-g <-ggplot(filt5,aes(x=variable, y=importance)) + 
-  geom_bar(stat="identity")
-plot(g)
 ```
 
 ```{r}
