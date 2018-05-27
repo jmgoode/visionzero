@@ -1,13 +1,12 @@
 ---
-title: "R Notebook"
-output:
-  html_document:
-    df_print: paged
+title: "MPCS 53120 Final Project"
+author: "Jason Goode & Jordan Zandi"
+date: "May 29, 2018"
+output: html_document
 ---
 
 
-
-```{r}
+```{r warning=FALSE, message=FALSE}
 rm(list=ls())
 library(plyr)
 library(lubridate)
@@ -20,56 +19,98 @@ library(curl)
 library(jsonlite)
 library(broom)
 library(rgdal)
+library(scales)
 
 ```
 
 
-Read in data and plot
+**Graph Injuries**
 ```{r}
-d.in <- read.csv('~/Desktop/visionzero/data/final/injury_monthly_final.csv', header = TRUE)
+#d.in <- read.csv('~/Desktop/visionzero/data/final/injury_monthly_final.csv', header = TRUE)
+d.in <- read.csv('~/Desktop/data_analysis/project/visionzero/data/final/injury_monthly_final.csv', header = TRUE)
 
+#Filter out intersections w/o injuries
 d.in <- d.in %>%
   filter(MN != 0)
 
-g <- ggplot(data = d.in, aes(x=MN, y=Injuries_COUNT)) + 
-  geom_bar(stat="identity")
+
+#All Injuries
+g <- ggplot(data = d.in, aes(x=month(MN,label=TRUE,abbr=TRUE), y=Injuries_COUNT)) + 
+  geom_bar(stat="identity", fill="steelblue") + 
+  labs(x = "Month", y = "Injuries") + 
+  ggtitle("Monthly Injuries (2016)") 
+
 plot(g)
 
-g <- ggplot(data = d.in, aes(x=MN, y=PedInjurie_COUNT)) + 
-  geom_bar(stat="identity")
+#Pedestrian Injuries
+g <- ggplot(data = d.in, aes(x=month(MN,label=TRUE,abbr=TRUE), y=PedInjurie_COUNT)) + 
+  geom_bar(stat="identity", fill="steelblue")  + 
+  labs(x = "Month", y = "Injuries") + 
+  ggtitle("Pedestrian Injuries (2016)") 
+
 plot(g)
 
-g <- ggplot(data = d.in, aes(x=MN, y=BikeInjuri_COUNT)) + 
-  geom_bar(stat="identity")
+#Bike Injuries
+g <- ggplot(data = d.in, aes(x=month(MN,label=TRUE,abbr=TRUE), y=BikeInjuri_COUNT)) + 
+  geom_bar(stat="identity", fill="steelblue") + 
+  labs(x = "Month", y = "Injuries") + 
+  ggtitle("Bike Injuries (2016)") 
+
 plot(g) 
 
-g <- ggplot(data = d.in, aes(x=MN, y=MVOInjurie_COUNT)) + 
-  geom_bar(stat="identity")
+#Motor Vehicle Injuries
+g <- ggplot(data = d.in, aes(x=month(MN,label=TRUE,abbr=TRUE), y=MVOInjurie_COUNT)) + 
+  geom_bar(stat="identity", fill="steelblue") + 
+  labs(x = "Month", y = "Injuries") + 
+  ggtitle("Motor Vehicle Injuries (2016)") 
+
 plot(g)
+
+#Note: We had trouble grouping data by type and making a stacked bar chart, so did it in excel.
 
 ```
 
+**Plot injuries to map**  
 
 ```{r}
-#d.in <- read.csv('~/Desktop/data_analysis/project/visionzero/data/final/injury_monthly_final.csv', header = TRUE)
-d.in <- read.csv('~/Desktop/visionzero/data/final/injury_monthly_final.csv', header = TRUE)
+d.in <- read.csv('~/Desktop/data_analysis/project/visionzero/data/final/injury_monthly_final.csv', header = TRUE)
+#d.in <- read.csv('~/Desktop/visionzero/data/final/injury_monthly_final.csv', header = TRUE)
 
+# Set a base map
+nyc <- get_map(location = c(lon = -73.935, lat = 40.712), zoom = 11)
 
+#Bike injuries by month
+bike_inj <- d.in %>% filter(Injuries == 1 & BikeInjuri == 1)
 
-# Get a map
-nyc <- get_map(location = c(lon = -73.935, lat = 40.712), zoom = 10)
+g <- ggmap(nyc) + geom_point(data = bike_inj, aes(x = Lon, y = Lat, fill=month(MN,label=TRUE,abbr=TRUE)),size = 1, shape = 21)  + ggtitle("Bike Injuries (2016)") 
 
-inj <- d.in %>% filter(Injuries == 1)
+plot(g)
 
 #bike_zones <- readOGR("http://www.nyc.gov/html/dot/downloads/misc/bike_priority_districts.json")
+#g <- ggmap(nyc) + ggmap(bike_zones)
+#multiplot(g, )
 
-g <- ggmap(nyc) + geom_point(data = inj, aes(x = Lon, y = Lat, color="red"), size = 1, shape = 21) 
+#Pedestrian injuries by month
+ped_inj <- d.in %>% filter(Injuries == 1 & PedInjurie == 1)
+
+g <- ggmap(nyc) + geom_point(data = ped_inj, aes(x = Lon, y = Lat, fill=month(MN,label=TRUE,abbr=TRUE)),size = 1, shape = 21) + ggtitle("Pedestrian Injuries (2016)") 
+
 plot(g)
+
+#MVO injuries by month
+mvo_inj <- d.in %>% filter(Injuries == 1 & MVOInjurie == 1)
+
+g <- ggmap(nyc) + geom_point(data = mvo_inj, aes(x = Lon, y = Lat, fill=month(MN,label=TRUE,abbr=TRUE)),size = 1, shape = 21) + ggtitle("Motor Vehicle Injuries (2016)") 
+
+plot(g)
+
 
 ```
 
 
 ```{r}
+
+#format dataset - turn variables into factors
 
 d.in <- d.in %>%
   mutate(Injuries = as.factor(Injuries),
@@ -88,14 +129,15 @@ d.in <- d.in %>%
          vz_priority_corridors = as.factor(vz_priority_corridors),
          vz_priority_intersections = as.factor(vz_priority_intersections),
          arterial_slow_zones = as.factor(arterial_slow_zones), 
-         MN = as.factor(MN), 
+         MN = as.factor(MN),
+         #MN = as.character.numeric_version(MN),
          street_improvement_projects_corridors = as.factor(street_improvement_projects_corridors),
          vz_priority_zones = as.factor(vz_priority_zones))
 
   
 ```
 
-
+**Multiple Logstic Regressions**
 ```{r}
 
 injury_monthly.glm <- glm(Injuries ~ MN + enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.in)
@@ -117,6 +159,7 @@ logistic.injurymonthly.bikeinjury <- glm(BikeInjuri ~ MN + bike_priority_distric
 logistic.injurymonthly.MVOinjurie <- glm(MVOInjurie ~ arterial_slow_zones + enhanced_crossings + speed_humps + left_turn_traffic_calming + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.in)
 ```
 
+**Build Predictive Model**
 ```{r}
 #GENERAL INJURY 
 #split data 70-30
