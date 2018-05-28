@@ -20,11 +20,17 @@ library(jsonlite)
 library(broom)
 library(rgdal)
 library(scales)
+library(rpart.plot)
+library(RColorBrewer)
+library(randomForest)
+library(ggRandomForests)
+
 
 ```
 
 
-**Graph Injuries**
+**Graph Injuries**  
+
 ```{r}
 #d.in <- read.csv('~/Desktop/visionzero/data/final/injury_monthly_final.csv', header = TRUE)
 d.in <- read.csv('~/Desktop/data_analysis/project/visionzero/data/final/injury_monthly_final.csv', header = TRUE)
@@ -66,8 +72,6 @@ g <- ggplot(data = d.in, aes(x=month(MN,label=TRUE,abbr=TRUE), y=MVOInjurie_COUN
 
 plot(g)
 
-#Note: We had trouble grouping data by type and making a stacked bar chart, so did it in excel.
-
 ```
 
 **Plot injuries to map**  
@@ -107,11 +111,15 @@ plot(g)
 
 ```
 
+**Format variables **  
 
 ```{r}
 
 #format dataset - turn variables into factors
+d.in <- read.csv('~/Desktop/data_analysis/project/visionzero/data/final/injury_monthly_final.csv', header = TRUE)
+#d.in <- read.csv('~/Desktop/visionzero/data/final/injury_monthly_final.csv', header = TRUE)
 
+#transform variables into factors
 d.in <- d.in %>%
   mutate(Injuries = as.factor(Injuries),
          PedInjurie = as.factor(PedInjurie),
@@ -130,33 +138,141 @@ d.in <- d.in %>%
          vz_priority_intersections = as.factor(vz_priority_intersections),
          arterial_slow_zones = as.factor(arterial_slow_zones), 
          MN = as.factor(MN),
-         #MN = as.character.numeric_version(MN),
          street_improvement_projects_corridors = as.factor(street_improvement_projects_corridors),
          vz_priority_zones = as.factor(vz_priority_zones))
 
   
 ```
 
-**Multiple Logstic Regressions**
+**Multiple Logistic Regressions**
 ```{r}
 
-injury_monthly.glm <- glm(Injuries ~ MN + enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.in)
+#GLM - AllInjures (minus VZ & Bike Zone)
+# VZ and Bike Zones are not street attributes - just known problem areas
 
-#summary(injury_yearly.glm)
-#exp(coef(injury_yearly.glm))
-#exp(confint(injury_yearly.glm))
+injury_monthly.glm <- glm(Injuries ~ enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.in)
 
+summary(injury_monthly.glm)
+exp(coef((injury_monthly.glm)))
+exp(confint((injury_monthly.glm)))
+    
+#build table to plot Odds Ratios
+a <- data.frame(exp(coef((injury_monthly.glm))))
 
-logistic.injurymonthly.pedinjury <- glm(PedInjurie ~ MN + arterial_slow_zones + enhanced_crossings + speed_humps + left_turn_traffic_calming + leading_pedestrian_interval_signals + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.in)
+a <- cbind(attribute = rownames(a), a)
+rownames(a) <- 1:nrow(a)
 
-#summary(logistic.injuryyearly.pedinjury)
+b <- data.frame(exp(confint((injury_monthly.glm))))
+b <- cbind(attribute = rownames(b), b)
+rownames(b) <- 1:nrow(b)
 
- 
-logistic.injurymonthly.bikeinjury <- glm(BikeInjuri ~ MN + bike_priority_districts + enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + signal_timing + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.in)
+coef_df <- left_join(a, b, by = "attribute")
+colnames(coef_df)[2] <- "coefficient"
+colnames(coef_df)[3] <- "lower_bound"
+colnames(coef_df)[4] <- "upper_bound"
 
-#summary(logistic.injuryyearly.bikeinjury) 
+g <- ggplot(coef_df, aes(x = attribute, y = coefficient)) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymax = upper_bound, ymin = lower_bound), width=0.1, color="darkred") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  geom_text(data = coef_df, aes(label = round(coefficient, digits=3)), hjust = 1.2) +
+  ggtitle("Injuries - Coefficients & Confidence Intervals")
 
-logistic.injurymonthly.MVOinjurie <- glm(MVOInjurie ~ arterial_slow_zones + enhanced_crossings + speed_humps + left_turn_traffic_calming + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.in)
+plot(g)
+
+#GLM - Pedestrian Injuries
+ped_injury <- glm(PedInjurie ~ arterial_slow_zones + enhanced_crossings + speed_humps + left_turn_traffic_calming + leading_pedestrian_interval_signals + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.in)
+
+summary(ped_injury)
+exp(coef(ped_injury))
+exp(confint(ped_injury))
+
+#GLM - Pedestrian Injuries
+#build table to plot Odds Ratios
+a <- data.frame(exp(coef((ped_injury))))
+
+a <- cbind(attribute = rownames(a), a)
+rownames(a) <- 1:nrow(a)
+
+b <- data.frame(exp(confint((ped_injury))))
+b <- cbind(attribute = rownames(b), b)
+rownames(b) <- 1:nrow(b)
+
+coef_df <- left_join(a, b, by = "attribute")
+colnames(coef_df)[2] <- "coefficient"
+colnames(coef_df)[3] <- "lower_bound"
+colnames(coef_df)[4] <- "upper_bound"
+
+g <- ggplot(coef_df, aes(x = attribute, y = coefficient)) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymax = upper_bound, ymin = lower_bound), width=0.1, color="darkred") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  geom_text(data = coef_df, aes(label = round(coefficient, digits=3)), hjust = 1.2) +
+  ggtitle("Pedestrian Injuries - Coefficients & Confidence Intervals")
+
+plot(g)
+
+#GLM - Bike Injuries
+bike_injury <- glm(BikeInjuri ~ bike_priority_districts + enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + signal_timing + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.in)
+
+summary(bike_injury)
+exp(coef(bike_injury))
+exp(confint(bike_injury))
+
+#build table to plot Odds Ratios
+a <- data.frame(exp(coef((bike_injury))))
+
+a <- cbind(attribute = rownames(a), a)
+rownames(a) <- 1:nrow(a)
+
+b <- data.frame(exp(confint((bike_injury))))
+b <- cbind(attribute = rownames(b), b)
+rownames(b) <- 1:nrow(b)
+
+coef_df <- left_join(a, b, by = "attribute")
+colnames(coef_df)[2] <- "coefficient"
+colnames(coef_df)[3] <- "lower_bound"
+colnames(coef_df)[4] <- "upper_bound"
+
+g <- ggplot(coef_df, aes(x = attribute, y = coefficient)) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymax = upper_bound, ymin = lower_bound), width=0.1, color="darkred") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  geom_text(data = coef_df, aes(label = round(coefficient, digits=3)), hjust = 1.2) +
+  ggtitle("Bike Injuries - Coefficients & Confidence Intervals")
+
+plot(g)
+
+#GLM - MVO Injuries
+mvo_injury <- glm(MVOInjurie ~ arterial_slow_zones + enhanced_crossings + speed_humps + left_turn_traffic_calming + street_improvement_projects_corridors + neighborhood_slow_zones, family = "binomial", data = d.in)
+
+summary(mvo_injury)
+exp(coef(mvo_injury))
+exp(confint(mvo_injury))
+
+#build table to plot Odds Ratios
+a <- data.frame(exp(coef((mvo_injury))))
+
+a <- cbind(attribute = rownames(a), a)
+rownames(a) <- 1:nrow(a)
+
+b <- data.frame(exp(confint((mvo_injury))))
+b <- cbind(attribute = rownames(b), b)
+rownames(b) <- 1:nrow(b)
+
+coef_df <- left_join(a, b, by = "attribute")
+colnames(coef_df)[2] <- "coefficient"
+colnames(coef_df)[3] <- "lower_bound"
+colnames(coef_df)[4] <- "upper_bound"
+
+g <- ggplot(coef_df, aes(x = attribute, y = coefficient)) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymax = upper_bound, ymin = lower_bound), width=0.1, color="darkred") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  geom_text(data = coef_df, aes(label = round(coefficient, digits=3)), hjust = 1.2) +
+  ggtitle("Motor Vehicle Injuries - Coefficients & Confidence Intervals")
+
+plot(g)
 ```
 
 **Build Predictive Model**
@@ -171,13 +287,9 @@ d.train <- d.in[t_index, ]
 d.test <- d.in[-t_index, ] 
 
 #train logistic regression take 1 (all)
-m.log <- glm(Injuries ~ bike_priority_districts + enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors + vz_priority_corridors + vz_priority_intersections + vz_priority_zones, data = d.train, family = "binomial")
+m.log <- glm(Injuries ~ bike_priority_districts + vz_priority_corridors + vz_priority_intersections + vz_priority_zones + enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors, data = d.train, family = "binomial")
 
-a <- data.frame(exp(confint(m.log)))
-b <- data.frame(exp(coef(m.log)))
-
-
-
+ #bike_priority_districts + vz_priority_corridors + vz_priority_intersections + vz_priority_zones +
 #train logistic regression take 2 (only real safety features)
 #m.log <- glm(Injuries ~ enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors + neighborhood_slow_zones, data = d.train, family = "binomial")
 
@@ -188,7 +300,7 @@ b <- data.frame(exp(coef(m.log)))
 d.test$Predicted_Injury <- predict(m.log, newdata = d.test, type = "response")
 
 #optimal cutoff seems to be 0.1
-d.test$Predicted_Injury <- ifelse(d.test$Predicted_Injury >= 0.2,
+d.test$Predicted_Injury <- ifelse(d.test$Predicted_Injury >= 0.1,
                                    1,
                                    0) 
 
@@ -209,16 +321,10 @@ fn <- d.test %>%
 sens <- tp/(tp+fn)
 
 # Specificity ( 1 - FPR)
-spec <- tn/(tn+fp)
+spec <- 1 - (tn/(tn+fp))
 
 # Accuracy
 acc <- (fp+tp)/(tp+tn+fp+fn)
-
-# FPR (1- Specificity)
-1 - (tn/(tn+fp))
-
-# FNR
-fn/(fn+tp)
 
 #find AUC
 pred <- prediction(predictions = d.test$Predicted_Injury, labels = d.test$Injuries)
@@ -228,12 +334,16 @@ plot(roc.perf)
 
 auc.perf <- performance(pred, measure = "auc")
 auc.perf@y.values
+```
+**Decision Tree**
+```{r}
 
-#Decision Tree
-mtree.1 <- rpart(Injuries ~ bike_priority_districts + enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors + vz_priority_corridors + vz_priority_intersections + vz_priority_zones, data=d.train, method="class")
-plot(mtree.1)
-text(mtree.1, pretty = 1)
+#Build Decision Tree
+mtree.1 <- rpart(Injuries ~ enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors, data=d.train, method="class")
 
+rpart.plot(mtree.1)
+
+#Plot variables of importance
 d.var_imp <-data.frame(mtree.1$variable.importance)
 names(d.var_imp) <- "importance"
 d.var_imp$variable <-as.factor(rownames(d.var_imp))
@@ -242,10 +352,51 @@ d.var_imp <-transform(d.var_imp, variable=reorder(variable, -importance) )
 filt5 <- d.var_imp %>% top_n(-5)
 
 g <-ggplot(filt5,aes(x=variable, y=importance)) + 
-  geom_bar(stat="identity")
+  geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 plot(g) 
+```
+
+**Random Forest**
+```{r}
+
+#Generate RF
+mrf.1 <- randomForest(Injuries ~ enhanced_crossings + speed_humps + left_turn_traffic_calming + arterial_slow_zones + leading_pedestrian_interval_signals + signal_timing + safe_streets_for_seniors + street_improvement_projects_corridors, data=d.train, importance = TRUE, ntree=1000)
+
+#plot variables of importance
+varImpPlot(mrf.1)
+
+#plot OOB error
+mrf.1$importance
+x <- gg_error(mrf.1)
+plot(x)
+
+#predict diagnosis (tree)
+d.test$Predicted_Injury <- predict(mtree.1, d.test, type="class")
+
+#form prediction object
+tree_pred <- prediction(predictions=as.numeric(d.test$Predicted_Injury), labels =as.numeric(d.test$Injuries))
+
+#calculate AUC
+auc.perf <- performance(tree_pred, measure = "auc")
+tree_auc <- auc.perf@y.values
+
+#predict diagnosis (forest)
+d.test$Predicted_Injury <- predict(mrf.1, d.test, type="class")
+
+#form prediction object (forest)
+rf_pred <-prediction(predictions=as.numeric(d.test$Predicted_Injury), labels =as.numeric(d.test$Injuries))
+
+#calculate auc
+auc.perf <- performance(rf_pred, measure = "auc")
+rf_auc <- auc.perf@y.values
+
+tree_auc
+rf_auc
 
 ```
+
+**Pedestrian Injury Predictions**
 ```{r}
 #PEDESTRIAN INJURY 
 set.seed(123)  
@@ -306,7 +457,7 @@ auc.perf@y.values
 
 
 ```
-
+**Bike Injury**
 ```{r}
 #BIKE INJURY 
 set.seed(123)  
@@ -366,7 +517,7 @@ auc.perf@y.values
 
 
 ```
-
+**MVO Injury**
 ```{r}
 #MVO INJURY 
 set.seed(123)  
